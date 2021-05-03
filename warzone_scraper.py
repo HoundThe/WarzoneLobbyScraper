@@ -223,6 +223,7 @@ def plot_lobbies_kd(username: str, count: int):
     plt.show()
 
 
-plot_lobbies_kd('TheHound#2293', 200)
-plot_lobbies_kd4(["TheHound#2293", 'TheHound#2293',
-                 'TheHound#2293', "TheHound#2293"], 200)
+if __name__ == "__main__":
+    plot_lobbies_kd('TheHound#2293', 200)
+    plot_lobbies_kd4(["TheHound#2293", 'TheHound#2293',
+                     'TheHound#2293', "TheHound#2293"], 200)
