@@ -11,6 +11,6 @@ About program:
 - Plots have fixed ticks from 0.4 to 1.6 KDR, which works for pretty much everyone except some outliers.
 - All calculated match KDRs are cached into the disk with Pickle, so you don't have to spam API for the same match twice if you want to replot.
 
-[Example graph:](example.png)
+![Example graph:](example.png)
 
 Data source: https://cod.tracker.gg/warzone/
