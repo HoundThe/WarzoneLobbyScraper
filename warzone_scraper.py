@@ -195,7 +195,7 @@ def plot_lobbies_kd4(usernames: list[str], count: int):
         df = prepare_frame(df)
 
         sns.barplot(ax=ax[idx], x=df.kd, y=df[0], palette='rocket_r')
-        ax[idx].set(title=f'{user} - Average team KDR graph from {size} games.',
+        ax[idx].set(title=f'{user} - Match KDR graph from {size} games.',
                     ylabel='Game count', xlabel='KD Ratio')
 
     fig.tight_layout()
@@ -215,7 +215,7 @@ def plot_lobbies_kd(username: str, count: int):
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
     sns.barplot(ax=ax, x=df.kd, y=df[0], palette='rocket_r')
-    ax.set(title=f'{username} - Average team KDR graph from {size} games.',
+    ax.set(title=f'{username} - Match KDR graph from {size} games.',
            ylabel='Game count', xlabel='KD Ratio')
 
     fig.tight_layout()
