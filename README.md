@@ -1,6 +1,6 @@
 ### Warzone KDR lobby scraper
 
-Python script that can plot average lobby KDR of someones last N lobbies.
+Python script that can plot lobby KDRs of someones last N lobbies.
 
 If you wonder why some people seem to have very easy lobbies, you can easily compare them with yours! You might find that some people abuse the game to match with weaker players to feel good.
 
@@ -10,6 +10,7 @@ About program:
 - Some people might not have enough games played or data on codtracker.
 - Plots have fixed ticks from 0.4 to 1.6 KDR, which works for pretty much everyone except some outliers.
 - All calculated match KDRs are cached into the disk with Pickle, so you don't have to spam API for the same match twice if you want to replot.
+- I've made the calculation the same as COD trackers as match team KDR
 
 ![Example graph:](example.png)
 
