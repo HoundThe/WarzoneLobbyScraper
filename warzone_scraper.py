@@ -10,9 +10,6 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
 
-# delay between requests to dodge ratelimit
-delay = 2.0
-
 
 class WarzoneScraper:
     def __init__(self, delay=3.0, cache_filename='matches.pkl.gz'):
@@ -58,7 +55,7 @@ class WarzoneScraper:
         if cached_kd:
             return cached_kd
 
-        time.sleep(delay)
+        time.sleep(self.delay)
 
         resp = requests.get(
             'https://api.tracker.gg/api/v2/warzone/standard/matches/' + match_id, headers=self.headers)
@@ -120,7 +117,7 @@ class WarzoneScraper:
             )
 
         # always returns packs of 20 games
-        time.sleep(delay)
+        time.sleep(self.delay)
 
         username_parsed = urllib.parse.quote(battlenet)
         p1, p2 = battlenet.split('#')
