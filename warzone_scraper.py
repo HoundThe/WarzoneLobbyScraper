@@ -12,7 +12,7 @@ import seaborn as sns
 
 
 class WarzoneScraper:
-    def __init__(self, delay=3.0, cache_filename='matches.pkl.gz'):
+    def __init__(self, delay=2.0, cache_filename='matches.pkl.gz'):
         self.cache_filename = cache_filename
         self.headers = {
             # Fill in headers from your browser !!!
@@ -196,7 +196,8 @@ def plot_lobbies_kd4(usernames: list[str], count: int):
                     ylabel='Game count', xlabel='KD Ratio')
 
     fig.tight_layout()
-    fig.savefig(f'{user[0]}_{user[1]}_{user[2]}_{user[3]}_plot.png')
+    fig.savefig(
+        f'{usernames[0]}_{usernames[1]}_{usernames[2]}_{usernames[3]}_{count}_plot.png')
     plt.show()
 
 
@@ -216,7 +217,7 @@ def plot_lobbies_kd(username: str, count: int):
            ylabel='Game count', xlabel='KD Ratio')
 
     fig.tight_layout()
-    fig.savefig(f'{username}_plot.png')
+    fig.savefig(f'{username}_{count}_plot.png')
     plt.show()
 
 
