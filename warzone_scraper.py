@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import requests
 import json
 import time
+import datetime
 import os
 import urllib.parse
 import gzip
@@ -60,7 +61,7 @@ class WarzoneScraper:
             'https://api.tracker.gg/api/v2/warzone/standard/matches/' + match_id, headers=self.headers)
 
         if resp.status_code == 500:
-            print('Error with API: ', page.text)
+            print('Error with API: ', resp.text)
             print("RateLimited? Waiting 10 minutes.")
             time.sleep(10 * 60)
             # Try again recursively
@@ -102,7 +103,20 @@ class WarzoneScraper:
 
         return matchKd
 
-    def get_last_n_matches(self, battlenet, count=20, next=None):
+    def __is_inside_time_interval(self, timestamp, start_hour, end_hour):
+        time = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").timetuple()
+        hour = time.tm_hour
+        if start_hour == end_hour:
+            return True
+        if end_hour < start_hour: # overlaps midnight
+            if start_hour <= hour or hour <= end_hour:
+                return True
+        elif start_hour <= hour and hour <= end_hour:
+            return True
+
+        return False
+
+    def get_last_n_matches(self, battlenet, count=20, start_hour=0, end_hour=0, next=None):
         """Fetch ids of `count` last matches of `username`"""
 
         if next:
@@ -136,23 +150,32 @@ class WarzoneScraper:
         match_ids = []
 
         for match in match_json['data']['matches']:
-            if match['attributes']['modeId'] in self.accepted_modes:
-                match_ids.append(match['attributes']['id'])
+            timestamp = match['metadata']['timestamp']
+            mode_id =  match['attributes']['modeId']
+            match_id = match['attributes']['id']
+            is_accepted = mode_id in self.accepted_modes and self.__is_inside_time_interval(timestamp, start_hour, end_hour)
+            if is_accepted:
+                # remove
+                time_t = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").timetuple()
+                print(f"Match {match_id} - time: {time_t.tm_hour}:{time_t.tm_min}")
+
+                match_ids.append(match_id)
 
         amount = len(match_ids)
 
         if amount < count:
             # recursive
+            next_timestamp = match_json['data']['metadata']['next']
             next_ids = self.get_last_n_matches(
-                battlenet, count=count-amount, next=match_json['data']['metadata']['next'])
+                battlenet, count-amount, start_hour, end_hour, next_timestamp)
 
             amount += len(next_ids)
             match_ids += next_ids
 
         return match_ids
 
-    def get_data_for_user(self, username: str, count: int) -> pd.DataFrame:
-        match_ids = self.get_last_n_matches(username, count)
+    def get_data_for_user(self, username: str, count: int, start_hour=0, end_hour=0) -> pd.DataFrame:
+        match_ids = self.get_last_n_matches(username, count, start_hour, end_hour)
 
         kds = []
         for id in match_ids:
@@ -175,7 +198,7 @@ def prepare_frame(df: pd.DataFrame) -> pd.DataFrame:
                         1.1, 1.2, 1.3, 1.4, 1.5, 1.6]).reset_index()
 
 
-def plot_lobbies_kd4(usernames: list[str], count: int):
+def plot_lobbies_kd4(usernames: list[str], count: int,  start_hour=0, end_hour=0):
     """Plots 2x2 subplots with team KD of 'count' lobbies of 4 users"""
     assert len(usernames) == 4
 
@@ -186,7 +209,7 @@ def plot_lobbies_kd4(usernames: list[str], count: int):
     scraper = WarzoneScraper()
 
     for idx, user in enumerate(usernames):
-        df = scraper.get_data_for_user(user, count)
+        df = scraper.get_data_for_user(username, count, start_hour, end_hour)
         size = len(df.index)
         df = prepare_frame(df)
 
@@ -200,13 +223,13 @@ def plot_lobbies_kd4(usernames: list[str], count: int):
     plt.show()
 
 
-def plot_lobbies_kd(username: str, count: int):
+def plot_lobbies_kd(username: str, count: int, start_hour=0, end_hour=0):
     """Plots team KD of `count` lobbies of 'username'"""
     sns.set_style("darkgrid", {"axes.facecolor": ".9"})
 
     scraper = WarzoneScraper()
 
-    df = scraper.get_data_for_user(username, count)
+    df = scraper.get_data_for_user(username, count, start_hour, end_hour)
     size = len(df.index)
     df = prepare_frame(df)
 
@@ -221,6 +244,7 @@ def plot_lobbies_kd(username: str, count: int):
 
 
 if __name__ == "__main__":
-    plot_lobbies_kd('TheHound#2293', 200)
+    plot_lobbies_kd('TheHound#2293', 100, 12, 0)
+    plot_lobbies_kd('TheHound#2293', 100, 0, 12)
     plot_lobbies_kd4(["TheHound#2293", 'TheHound#2293',
                      'TheHound#2293', "TheHound#2293"], 200)
