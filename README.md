@@ -31,6 +31,8 @@ The headers can look like this, can be exported from browser as cURL commands an
         }
 ```
 
+If you found the script useful, hit the ★ Star button!
+
 ![Example graph:](example.png)
 
 Data source: https://cod.tracker.gg/warzone/
