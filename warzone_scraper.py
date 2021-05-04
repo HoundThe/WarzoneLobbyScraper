@@ -26,7 +26,6 @@ class WarzoneScraper:
             "br_brquads",
             "br_brtrios",
             "br_brduos",
-            "br_brsolos",
         ]
         # Load existing cache from drive
         if os.path.exists(self.cache_filename):
