@@ -5,11 +5,9 @@ import datetime
 from matplotlib import pyplot as plt
 
 
-def prepare_total_kd_frame(df: pd.DataFrame, start_game: int, end_game: int) -> pd.DataFrame:
+def prepare_total_kd_frame(df: pd.DataFrame) -> pd.DataFrame:
     """Cleans up the data into 0.3-1.6 KD interval for uniform look"""
 
-    # filter out the desired game interval
-    df = df[start_game:end_game]
     group = df.value_counts(subset=['kd'], sort=False).reset_index()
     group = group.set_index('kd').reindex([0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
                                            1.1, 1.2, 1.3, 1.4, 1.5, 1.6]).reset_index()
@@ -50,8 +48,10 @@ def plot_total_lobby_kd4(
 
     for idx, user in enumerate(usernames):
         df = scraper.get_data_for_user(user, end_game, start_hour, end_hour)
-        avg_kd = round(df['kd'].mean(), 1)
-        df = prepare_total_kd_frame(df, start_game, end_game)
+        # filter out the desired game interval
+        df = df[start_game:end_game]
+        avg_kd = round(df['kd'].mean(), 3)
+        df = prepare_total_kd_frame(df)
 
         sns.barplot(ax=ax[idx], x=df.kd, y=df[0], palette='rocket_r')
 
@@ -75,8 +75,10 @@ def plot_total_lobby_kd(username: str, start_game: int, end_game: int, start_hou
     scraper = WarzoneScraper()
 
     df = scraper.get_data_for_user(username, end_game, start_hour, end_hour)
-    avg_kd = round(df['kd'].mean(), 1)
-    df = prepare_total_kd_frame(df, start_game, end_game)
+    # filter out the desired game interval
+    df = df[start_game:end_game]
+    avg_kd = round(df['kd'].mean(), 3)
+    df = prepare_total_kd_frame(df)
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
     sns.barplot(ax=ax, x=df.kd, y=df[0], palette='rocket_r')
@@ -99,7 +101,7 @@ def plot_daily_lobby_kd(username: str, count: int, start_hour=0, end_hour=0):
 
     df = scraper.get_data_for_user(username, count, start_hour, end_hour)
     count = len(df.index)
-    avg_kd = round(df['kd'].mean(), 1)
+    avg_kd = round(df['kd'].mean(), 3)
     df = prepare_daily_kd_frame(df)
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
 
@@ -142,5 +144,5 @@ def plot_daily_lobby_kd2(usernames: list, count: int, start_hour=0, end_hour=0):
 
 if __name__ == "__main__":
     sns.set_style("darkgrid", {"axes.facecolor": ".9"})
-
-    plot_total_lobby_kd('treska#21707', start_game=0, end_game=200)
+    plot_total_lobby_kd('Achiles#2615', start_game=0, end_game=150)
+    plot_total_lobby_kd('Achiles#2615', start_game=250, end_game=400)
