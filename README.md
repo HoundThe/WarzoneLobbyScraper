@@ -6,6 +6,7 @@ If you wonder why some people seem to have very easy lobbies, you can easily com
 
 About program:
 - **To use** you need to fill in your browser headers at [line 21](https://github.com/HoundThe/WarzoneLobbyScraper/blob/main/warzone_scraper.py#L21) and the rest if pretty straightforward.
+- There is hour interval filter, so you can filter morning hours like 00:00-12:00 and afternoon like 12:00 - 00:00.
 - There is delay between requests 2 seconds by default, you can lower it, but be careful about ratelimits if you are trying to plot large amount of lobbies.
 - Some people might not have enough games played or data on codtracker.
 - Plots have fixed ticks from 0.4 to 1.6 KDR, which works for pretty much everyone except some outliers.
@@ -29,6 +30,8 @@ The headers can look like this, can be exported from browser as cURL commands an
             'cookie': 'X-Mapping-Server=s13; _ga=GA1.2.1448582809.1617622930; __cfduid=d1944447010737f1d68c08e07b8ca3f751619684886; __cflb=02DiuFQAkRrzD1P1mdjW28WYn2UPf2uF9TyLXPf6LtKtg',
         }
 ```
+
+If you found the script useful, hit the ★ Star button!
 
 ![Example graph:](example.png)
 
