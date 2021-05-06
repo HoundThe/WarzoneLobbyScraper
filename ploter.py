@@ -50,10 +50,12 @@ def plot_total_lobby_kd4(
 
     for idx, user in enumerate(usernames):
         df = scraper.get_data_for_user(user, end_game, start_hour, end_hour)
+        avg_kd = round(df['kd'].mean(), 1)
         df = prepare_total_kd_frame(df, start_game, end_game)
 
         sns.barplot(ax=ax[idx], x=df.kd, y=df[0], palette='rocket_r')
-        title = f'{user} - KDR of lobbies from {start_game} to {end_game} latest games'
+
+        title = f'{user} - KDR of lobbies from  {start_game} to {end_game} latest games - Avg. KDR : {avg_kd}'
 
         if start_hour != end_hour:
             title += f' between {start_hour}:00 and {end_hour}:59'
@@ -73,12 +75,13 @@ def plot_total_lobby_kd(username: str, start_game: int, end_game: int, start_hou
     scraper = WarzoneScraper()
 
     df = scraper.get_data_for_user(username, end_game, start_hour, end_hour)
+    avg_kd = round(df['kd'].mean(), 1)
     df = prepare_total_kd_frame(df, start_game, end_game)
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
     sns.barplot(ax=ax, x=df.kd, y=df[0], palette='rocket_r')
 
-    title = f'{username} - KDR of lobbies from {start_game} to {end_game} latest games'
+    title = f'{username} - KDR of lobbies from {start_game} to {end_game} latest games - Avg. KDR : {avg_kd}'
     if start_hour != end_hour:
         title += f' between {start_hour}:00 and {end_hour}:59'
 
@@ -96,12 +99,13 @@ def plot_daily_lobby_kd(username: str, count: int, start_hour=0, end_hour=0):
 
     df = scraper.get_data_for_user(username, count, start_hour, end_hour)
     count = len(df.index)
+    avg_kd = round(df['kd'].mean(), 1)
     df = prepare_daily_kd_frame(df)
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
 
     df.set_index('day', inplace=True)
     sns.lineplot(ax=ax, data=df)
-    ax.set(title=f'{username} - Daily average lobby KD from {count} games.',
+    ax.set(title=f'{username} - Daily average lobby KD from {count} games - Avg. KDR : {avg_kd}',
            ylabel='Average lobby KD', xlabel='Date')
 
     fig.tight_layout()
@@ -128,7 +132,7 @@ def plot_daily_lobby_kd2(usernames: list, count: int, start_hour=0, end_hour=0):
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 5))
     sns.lineplot(ax=ax, x=df.day, y=df.MA7, hue=df.name)
-    ax.set(title=f'{usernames} - Daily 7 day moving average of lobby KD from {count} games.',
+    ax.set(title=f'{usernames} - Daily 7 day moving average of lobby KD from {count} games',
            ylabel='Average lobby KD', xlabel='Date')
 
     fig.tight_layout()
@@ -138,10 +142,5 @@ def plot_daily_lobby_kd2(usernames: list, count: int, start_hour=0, end_hour=0):
 
 if __name__ == "__main__":
     sns.set_style("darkgrid", {"axes.facecolor": ".9"})
-    plot_total_lobby_kd4(
-        usernames=['farb#2499', 'nуtr1x#5856953', 'Puebla#21272', 'Achiles#2615'],
-        start_game=0, end_game=120)
 
-    plot_daily_lobby_kd('bachio99#2426', count=300)
-    plot_daily_lobby_kd('nуtr1x#5856953', count=300)
-    plot_daily_lobby_kd2(['bachio99#2426', 'Achiles#2615'], 800, 0, 0)
+    plot_total_lobby_kd('treska#21707', start_game=0, end_game=200)
