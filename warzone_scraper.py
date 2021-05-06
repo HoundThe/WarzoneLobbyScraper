@@ -1,4 +1,3 @@
-from bs4 import BeautifulSoup
 import requests
 import json
 import time
@@ -8,15 +7,19 @@ import urllib.parse
 import gzip
 import pickle
 import pandas as pd
-from matplotlib import pyplot as plt
-import seaborn as sns
 
 
 class WarzoneScraper:
-    def __init__(self, delay=2.0, cache_filename='matches.pkl.gz'):
+    def __init__(self, delay=1.0, cache_filename='matches.pkl.gz'):
         self.cache_filename = cache_filename
         self.headers = {
-            # Fill in headers from your browser !!!
+            'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="90", "Google Chrome";v="90"',
+            'Accept': 'application/json, text/plain, */*',
+            'Referer': 'https://cod.tracker.gg/',
+            'Accept-Language': 'en',
+            'sec-ch-ua-mobile': '?0',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\
+             (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36',
         }
         # delay between requests to dodge ratelimit
         self.delay = delay
@@ -33,82 +36,29 @@ class WarzoneScraper:
             with gzip.open(self.cache_filename, 'rb') as file:
                 self.cache = pickle.load(file)
 
-    def __get_cached_match(self, match_id: str) -> float:
+    def __get_cached_match(self, match_id: str) -> tuple:
         """Returns cached match KDR or None"""
         if match_id in self.cache:
             return self.cache[match_id]
 
         return None
 
-    def __cache_match(self, match_id: str, kd: float):
+    def __cache_match(self, match_id: str, match_data: tuple):
         """Caches match KDR to in-memory cache"""
-        self.cache[match_id] = kd
+        self.cache[match_id] = match_data
 
     def save_cache(self):
         """Saves cache to disk"""
         with gzip.open(self.cache_filename, 'wb') as file:
             pickle.dump(self.cache, file)
 
-    def get_match_kd(self, match_id: str) -> float:
-        """Fetches match data and calculates team KDR of the match"""
-        cached_kd = self.__get_cached_match(match_id)
-        if cached_kd:
-            return cached_kd
-
-        time.sleep(self.delay)
-
-        resp = requests.get(
-            'https://api.tracker.gg/api/v2/warzone/standard/matches/' + match_id, headers=self.headers)
-
-        if resp.status_code == 500:
-            print('Error with API: ', resp.text)
-            print("RateLimited? Waiting 10 minutes.")
-            time.sleep(10 * 60)
-            # Try again recursively
-            return get_match_kd(self, match_id)
-
-        players = []
-        teams = {}
-        # Sort all players into coresponding teams
-        for player in resp.json()['data']['segments']:
-            team = player['attributes']['team']
-            name = player['attributes']['platformUserIdentifier']
-            kd = 0
-            if 'lifeTimeStats' in player['attributes']:
-                kd = player['attributes']['lifeTimeStats']['kdRatio']
-
-            if team not in teams:
-                teams[team] = [(name, kd, team)]
-            else:
-                teams[team].append((name, kd, team))
-
-        matchKd = 0
-        for team in teams:
-            count_of_kds = 0
-            teamKd = 0
-            for player in teams[team]:
-                # if KDR is not 0, players has stats
-                if player[1] > 0:
-                    count_of_kds += 1
-                    teamKd += player[1]
-            # To use team in calculation, there must be atleast 2 members
-            # in the team and atleast 1 of them has to have KD statistics
-            if count_of_kds >= 1 and len(teams[team]) > 1:
-                teamKd /= count_of_kds
-                matchKd += teamKd
-
-        matchKd = matchKd / len(teams)
-
-        self.__cache_match(match_id, matchKd)
-
-        return matchKd
-
     def __is_inside_time_interval(self, timestamp, start_hour, end_hour):
-        time = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").timetuple()
+        time = datetime.datetime.strptime(
+            timestamp, "%Y-%m-%dT%H:%M:%S%z").timetuple()
         hour = time.tm_hour
         if start_hour == end_hour:
             return True
-        if end_hour < start_hour: # overlaps midnight
+        if end_hour < start_hour:  # overlaps midnight
             if start_hour <= hour or hour <= end_hour:
                 return True
         elif start_hour <= hour and hour <= end_hour:
@@ -116,48 +66,55 @@ class WarzoneScraper:
 
         return False
 
+    def __delay_request(self):
+        time.sleep(self.delay)
+
     def get_last_n_matches(self, battlenet, count=20, start_hour=0, end_hour=0, next=None):
         """Fetch ids of `count` last matches of `username`"""
+        self.__delay_request()
 
-        if next:
-            params = (
-                ('type', 'wz'),
-                ('next', str(next)),
-            )
-        else:
-            params = (
-                ('type', 'wz'),
-            )
-
-        # always returns packs of 20 games
-        time.sleep(self.delay)
+        params = (('type', 'wz'), ('next', str(next))
+                  ) if next else (('type', 'wz'),)
 
         username_parsed = urllib.parse.quote(battlenet)
         p1, p2 = battlenet.split('#')
         # more numbers -> activision username
+        url = 'https://api.tracker.gg/api/v2/warzone/standard/matches/atvi/'
         if len(p2) <= 5:
-            page = requests.get(
-                'https://api.tracker.gg/api/v2/warzone/standard/matches/battlenet/' + username_parsed, headers=self.headers, params=params)
-        else:
-            page = requests.get(
-                'https://api.tracker.gg/api/v2/warzone/standard/matches/atvi/' + username_parsed, headers=self.headers, params=params)
+            url = 'https://api.tracker.gg/api/v2/warzone/standard/matches/battlenet/'
 
-        if page.status_code == 500:
-            print('Error with API: ', page.text)
+        resp = requests.get(url + username_parsed,
+                            headers=self.headers, params=params)
+
+        if resp.status_code == 429:
+            print("RateLimited? Wwaiting 10 minutes.", resp.text)
+            time.sleep(10 * 60)
+            # Try again recursively
+            return self.get_last_n_matches(battlenet, count, start_hour, end_hour, next)
+        if resp.status_code == 500:
+            print('Error with API, saving cache: ', resp.text)
             exit(1)
+        if resp.status_code == 503 or resp.status_code == 504 or resp.status_code == 400:
+            print('Service not available, retrying:')
+            while resp.status_code == 503 or resp.status_code == 504 or resp.status_code == 400:
+                time.sleep(30)
+                resp = requests.get(url + username_parsed, headers=self.headers, params=params)
 
-        match_json = json.loads(page.text)
+        match_json = json.loads(resp.text)
         match_ids = []
 
         for match in match_json['data']['matches']:
             timestamp = match['metadata']['timestamp']
-            mode_id =  match['attributes']['modeId']
+            mode_id = match['attributes']['modeId']
             match_id = match['attributes']['id']
-            is_accepted = mode_id in self.accepted_modes and self.__is_inside_time_interval(timestamp, start_hour, end_hour)
+            is_accepted = mode_id in self.accepted_modes and self.__is_inside_time_interval(
+                timestamp, start_hour, end_hour)
             if is_accepted:
                 # remove
-                time_t = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%z").timetuple()
-                print(f"Match {match_id} - time: {time_t.tm_hour}:{time_t.tm_min}")
+                time_t = datetime.datetime.strptime(
+                    timestamp, "%Y-%m-%dT%H:%M:%S%z").timetuple()
+                print(
+                    f"Match {match_id} - time: {time_t.tm_hour}:{time_t.tm_min}")
 
                 match_ids.append(match_id)
 
@@ -174,77 +131,92 @@ class WarzoneScraper:
 
         return match_ids
 
+    def __calculate_match_kd(self, teams: list) -> float:
+        matchKd = 0
+        for team in teams:
+            count_of_kds = 0
+            teamKd = 0
+            for player in teams[team]:
+                # if KDR is not 0, players has stats
+                if player[1] > 0:
+                    count_of_kds += 1
+                    teamKd += player[1]
+            """ Copying COD Tracker Avg. team KD algo for identical results
+            To use team in calculation, there must be atleast 2 members
+            in the team and atleast 1 of them has to have KD statistics """
+            if count_of_kds >= 1 and len(teams[team]) > 1:
+                teamKd /= count_of_kds
+                matchKd += teamKd
+
+        return matchKd / len(teams)
+
+    def get_match_data(self, match_id: str) -> tuple():
+        """Fetches match data and calculates team KDR of the match"""
+        self.__delay_request()
+
+        url = 'https://api.tracker.gg/api/v2/warzone/standard/matches/'
+        resp = requests.get(url + match_id, headers=self.headers)
+
+        if resp.status_code == 429:
+            self.save_cache()
+            print("RateLimited? Saved cache, waiting 10 minutes.", resp.text)
+            time.sleep(10 * 60)
+            # Try again recursively
+            return self.get_match_data(match_id)
+        if resp.status_code == 500:
+            print('Error with API, saving cache: ', resp.text)
+            self.save_cache()
+            exit(1)
+        if resp.status_code == 503 or resp.status_code == 504 or resp.status_code == 400:
+            print('Service not available, retrying:')
+            self.save_cache()
+            while resp.status_code == 503 or resp.status_code == 504 or resp.status_code == 400:
+                time.sleep(30)
+                resp = requests.get(url + match_id, headers=self.headers)
+
+        teams = {}
+        json = resp.json()
+        # Sort all players into coresponding teams
+        if 'data' not in json:
+            print('Match not found? Saving cache, retrying --', resp.text)
+            self.save_cache()
+            while 'data' not in resp.json():
+                time.sleep(30)
+                resp = requests.get(url + match_id, headers=self.headers)
+
+        for player in json['data']['segments']:
+            team = player['attributes']['team']
+            name = player['attributes']['platformUserIdentifier']
+            kd = 0
+            if 'lifeTimeStats' in player['attributes']:
+                kd = player['attributes']['lifeTimeStats']['kdRatio']
+
+            if team not in teams:
+                teams[team] = [(name, kd, team)]
+            else:
+                teams[team].append((name, kd, team))
+
+        match_kd = round(self.__calculate_match_kd(teams), 1)
+        match_id = json['data']['attributes']['id']
+        timestamp = int(json['data']['metadata']['timestamp']) / 1e3
+        match_data = (match_id, match_kd, teams, timestamp)
+
+        self.__cache_match(match_id, match_data)
+        return match_data
+
     def get_data_for_user(self, username: str, count: int, start_hour=0, end_hour=0) -> pd.DataFrame:
         match_ids = self.get_last_n_matches(username, count, start_hour, end_hour)
 
-        kds = []
+        df = pd.DataFrame(columns=['id', 'kd', 'teams', 'timestamp'])
         for id in match_ids:
-            match_kd = self.get_match_kd(id)
-            kds.append(round(match_kd, 1))
-            # caching every response in case that
-            # I get ratelimited or blocked so I don't lose progress
-            # It take no time anyways
-            self.save_cache()
-            # print(id, round(match_kd, 1))
+            # Try cache first
+            match_data = self.__get_cached_match(id)
+            if not match_data:
+                match_data = self.get_match_data(id)
 
-        return pd.DataFrame(kds, columns=['kd'])
+            print(match_data[0], match_data[1])
+            df.loc[len(df)] = list(match_data)
 
-
-def prepare_frame(df: pd.DataFrame) -> pd.DataFrame:
-    """Cleans up the data into 0.4-1.6 KD interval for easier comparison"""
-    grp = df.value_counts(sort=False).reset_index()
-    grp = grp.set_index('kd')
-    return grp.reindex([0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-                        1.1, 1.2, 1.3, 1.4, 1.5, 1.6]).reset_index()
-
-
-def plot_lobbies_kd4(usernames: list[str], count: int,  start_hour=0, end_hour=0):
-    """Plots 2x2 subplots with team KD of 'count' lobbies of 4 users"""
-    assert len(usernames) == 4
-
-    sns.set_style("darkgrid", {"axes.facecolor": ".9"})
-    fig, ax = plt.subplots(2, 2, figsize=(12, 7), sharex=True, sharey=True)
-    ax = ax.flatten()
-
-    scraper = WarzoneScraper()
-
-    for idx, user in enumerate(usernames):
-        df = scraper.get_data_for_user(username, count, start_hour, end_hour)
-        size = len(df.index)
-        df = prepare_frame(df)
-
-        sns.barplot(ax=ax[idx], x=df.kd, y=df[0], palette='rocket_r')
-        ax[idx].set(title=f'{user} - Match KDR graph from {size} games.',
-                    ylabel='Game count', xlabel='KD Ratio')
-
-    fig.tight_layout()
-    fig.savefig(
-        f'{usernames[0]}_{usernames[1]}_{usernames[2]}_{usernames[3]}_{count}_plot.png')
-    plt.show()
-
-
-def plot_lobbies_kd(username: str, count: int, start_hour=0, end_hour=0):
-    """Plots team KD of `count` lobbies of 'username'"""
-    sns.set_style("darkgrid", {"axes.facecolor": ".9"})
-
-    scraper = WarzoneScraper()
-
-    df = scraper.get_data_for_user(username, count, start_hour, end_hour)
-    size = len(df.index)
-    df = prepare_frame(df)
-
-    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
-    sns.barplot(ax=ax, x=df.kd, y=df[0], palette='rocket_r')
-    ax.set(title=f'{username} - Match KDR graph from {size} games.',
-           ylabel='Game count', xlabel='KD Ratio')
-
-    fig.tight_layout()
-    fig.savefig(f'{username}_{count}_plot.png')
-    plt.show()
-
-
-if __name__ == "__main__":
-    plot_lobbies_kd('TheHound#2293', 100, 12, 0)
-    plot_lobbies_kd('TheHound#2293', 100, 0, 12)
-    plot_lobbies_kd4(["TheHound#2293", 'TheHound#2293',
-                     'TheHound#2293', "TheHound#2293"], 200)
+        print('Caching matches')
+        self.save_cache()
+        return df
