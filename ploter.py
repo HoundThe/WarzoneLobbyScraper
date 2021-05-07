@@ -203,11 +203,12 @@ def plot_daily_lobby_kd2(usernames: list, count: int, start_hour=0, end_hour=0):
 if __name__ == "__main__":
     # set the seaborn visual
     sns.set_style("darkgrid", {"axes.facecolor": ".9"})
-
+    # these are examples, results can be seen in the repository
     plot_total_lobby_kd('TheHound#2293', start_game=0, end_game=50, start_hour=14, end_hour=24)
-    plot_total_lobby_kd('TheHound#2293', start_game=0, end_game=300)
-    plot_daily_lobby_kd('Achiles#2615', 500, 0, 0)
-    plot_daily_lobby_kd2(['bachio99#2426', 'Achiles#2615'], 600, 0, 0)
-    plot_total_lobby_kd4(
-        usernames=['Farb#2499', 'Tomor36#2712', 'TheHound#2293', 'Achiles#2615'],
-        start_game=0, end_game=200)
+    # plot_total_lobby_kd('TheHound#2293', start_game=50, end_game=100)
+    # plot_total_lobby_kd('TheHound#2293', start_game=0, end_game=300)
+    # plot_daily_lobby_kd('Achiles#2615', 500, 0, 0)
+    # plot_daily_lobby_kd2(['bachio99#2426', 'Achiles#2615'], 600, 0, 0)
+    # plot_total_lobby_kd4(
+    #     usernames=['Farb#2499', 'Tomor36#2712', 'TheHound#2293', 'Achiles#2615'],
+    #     start_game=0, end_game=200)
