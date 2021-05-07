@@ -19,24 +19,24 @@ There is TODO to cache also the list of last player games, but it is not impleme
 There are 4 kinds of graphs to plot:
 
 Average game KDR bar graph of a single player:
-![Average game KDR bar graph of a single player:](total_TheHound%232293_0-300_hours_0-0.png)
+![Average game KDR bar graph of a single player:](plots/total_TheHound%232293_0-300_hours_0-0.png)
 
 Average game KDR bar graph of 4 players:
-![Average game KDR bar graph of 4 players:](total_Farb%232499_Tomor36%232712_TheHound%232293_Achiles%232615_0-200_hour_0-0.png)
+![Average game KDR bar graph of 4 players:](plots/total_Farb%232499_Tomor36%232712_TheHound%232293_Achiles%232615_0-200_hour_0-0.png)
 
 Daily average KDR line graph (Daily avg. KDR, 3-day moving average, 7-day moving average) of a single player:
-![Daily average KDR line graph (Daily avg. KDR, 3-day moving average, 7-day moving average) of a single player:](daily_Achiles%232615_508_hours_0-0.png)
+![Daily average KDR line graph (Daily avg. KDR, 3-day moving average, 7-day moving average) of a single player:](plots/daily_Achiles%232615_508_hours_0-0.png)
 
 Daily average KDR line graph (7-day moving average) of 2 players:
-![Daily average KDR line graph (7-day moving average) of 2 players:](daily_bachio99%232426_Achiles%232615_600_hour_0-0.png)
+![Daily average KDR line graph (7-day moving average) of 2 players:](plots/daily_bachio99%232426_Achiles%232615_600_hour_0-0.png)
 
 Every graph has option to filter out certain day hours (afternoon games, morning games).
 
-![Example:](total_TheHound%232293_0-50_hours_14-24.png)
+![Example:](plots/total_TheHound%232293_0-50_hours_14-24.png)
 
 In the bar graph you can also use game interval, for example 0 to 150 last games, and then 150 to 350 last games. Useful to see difference in the lobbies if the user started abusing easy lobbies just recently.
 
-![Example:](total_TheHound%232293_50-100_hours_0-0.png)
+![Example:](plots/total_TheHound%232293_50-100_hours_0-0.png)
 
 All of these graphs are plotted by function calls in `ploter.py`, some are commented out. It should be pretty intuitive to use them as you wish (replace the username with your, number of games, etc.)
 

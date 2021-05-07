@@ -44,7 +44,7 @@ def plot_total_lobby_kd4(
         start_game: int, end_game: int, start_hour=0, end_hour=0):
     """Plots 2x2 histograms with avg. match KD of latest games
 
-    Plots are saved with descriptive name into the script folder
+    Plots are saved with descriptive name into the plots/ folder
 
     Arguments:
         usernames (list[str]) - 4 battlenet or activision IDs
@@ -81,7 +81,7 @@ def plot_total_lobby_kd4(
 
     fig.tight_layout()
     fig.savefig(
-        f'total_{usernames[0]}_{usernames[1]}_{usernames[2]}\
+        f'plots/total_{usernames[0]}_{usernames[1]}_{usernames[2]}\
 _{usernames[3]}_{start_game}-{end_game}_hour_{start_hour}-{end_hour}.png')
     plt.show()
 
@@ -89,7 +89,7 @@ _{usernames[3]}_{start_game}-{end_game}_hour_{start_hour}-{end_hour}.png')
 def plot_total_lobby_kd(username: str, start_game: int, end_game: int, start_hour=0, end_hour=0):
     """Plots avg. match KD histogram of latest games
 
-    Plots are saved with descriptive name into the script folder
+    Plots are saved with descriptive name into the plots/ folder
 
     Arguments:
         username (str) - battlenet or activision name
@@ -122,7 +122,7 @@ def plot_total_lobby_kd(username: str, start_game: int, end_game: int, start_hou
 
     fig.tight_layout()
     fig.savefig(
-        f'total_{username}_{start_game}-{end_game}_hours_{start_hour}-{end_hour}.png')
+        f'plots/total_{username}_{start_game}-{end_game}_hours_{start_hour}-{end_hour}.png')
     plt.show()
 
 
@@ -130,7 +130,9 @@ def plot_daily_lobby_kd(username: str, count: int, start_hour=0, end_hour=0):
     """Plots average KD each day for last `count` matches, missing days are omitted
 
     3 lines are plotted, KD of the day, moving 3-day average, moving 7-day average
-    Plots are saved with descriptive name into the script folder
+
+    Plots are saved with descriptive name into the plots/ folder
+
     Day has to have atleast 3 games in the hour interval to be used in the calculation
 
     Arguments:
@@ -155,7 +157,7 @@ def plot_daily_lobby_kd(username: str, count: int, start_hour=0, end_hour=0):
            ylabel='Average lobby KD', xlabel='Date')
 
     fig.tight_layout()
-    fig.savefig(f'daily_{username}_{count}_hours_{start_hour}-{end_hour}.png')
+    fig.savefig(f'plots/daily_{username}_{count}_hours_{start_hour}-{end_hour}.png')
     plt.show()
 
 
@@ -163,7 +165,9 @@ def plot_daily_lobby_kd2(usernames: list, count: int, start_hour=0, end_hour=0):
     """Plots average KD each day for last `count` matches for 2 players, missing days are omitted
 
     Each line represents 7-day moving average of a player
-    Plots are saved with descriptive name into the script folder
+
+    Plots are saved with descriptive name into the plots/ folder
+
     Day has to have atleast 3 games in the hour interval to be used in the calculation
 
     Arguments:
@@ -196,7 +200,8 @@ def plot_daily_lobby_kd2(usernames: list, count: int, start_hour=0, end_hour=0):
            ylabel='Average lobby KD', xlabel='Date')
 
     fig.tight_layout()
-    fig.savefig(f'daily_{usernames[0]}_{usernames[1]}_{count}_hour_{start_hour}-{end_hour}.png')
+    fig.savefig(
+        f'plots/daily_{usernames[0]}_{usernames[1]}_{count}_hour_{start_hour}-{end_hour}.png')
     plt.show()
 
 
