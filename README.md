@@ -1,4 +1,4 @@
-### Warzone KDR lobby scraper
+# Warzone KDR lobby scraper
 
 Python script that can plot lobby KDRs of someones last N lobbies.
 
@@ -6,15 +6,17 @@ If you wonder why some people seem to have very easy lobbies, you can easily com
 
 If you find the script useful, hit the ★ Star button!
 
-File `warzone.scraper.py` contains all the data fetching from COD Tracker.
-File `ploter.py` has the plotting functions and the main program.
+Details:
+ - File `warzone.scraper.py` contains all the data fetching from COD Tracker.
+ - File `ploter.py` has the plotting functions and the main program, which you should edit with your own logic.
 
-To use you need Python3. All the necessary libraries can be downloaded using `pip install -r requirements.txt`
+ - To use the program you need Python3. All the necessary libraries can be downloaded using `pip install -r requirements.txt`
 
-When first used, the program caches downloaded matches so you don't have to download them everytime, but the first plotting takes a while.
-I set delay to 1 second per request, so 100 matches to plot would take atleast 100 seconds - realisticaly about twice of that.
+ - When first used, the program caches downloaded matches so you don't have to download them everytime, but the first plotting takes a while. I've set delay to 1 second per request, so 100 matches to plot would take atleast 100 seconds - realisticaly about twice of that.
 
-There is TODO to cache also the list of last player games, but it is not implemented yet, so every plot will have to fetch all the games the user played and then fetch data about each match (but data about each match is cached). Fetching the list of games is fast, because it fetches 20 games each request.
+ - There is TODO to cache also the list of last player games, but it is not implemented yet, so every plot will have to fetch all the games the user played and then fetch data about each match (but data about each match is cached). Fetching the list of games is fast, because it fetches 20 games each request.
+
+- All of the follwing graphs are plotted by function calls in `ploter.py`, some are commented out. It should be pretty intuitive to use them as you wish (replace the username with your, number of games, etc.)
 
 There are 4 kinds of graphs to plot:
 
@@ -38,7 +40,6 @@ In the bar graph you can also use game interval, for example 0 to 150 last games
 
 ![Example:](total_TheHound%232293_50-100_hours_0-0.png)
 
-All of these graphs are plotted by function calls in `ploter.py`, some are commented out. It should be pretty intuitive to use them as you wish (replace the username with your, number of games, etc.)
 
 About program:
 - There is hour interval filter, so you can filter morning hours like 00:00-12:00 and afternoon like 12:00 - 00:00.
