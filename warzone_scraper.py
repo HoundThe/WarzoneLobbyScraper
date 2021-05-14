@@ -1,5 +1,6 @@
+from pandas.core.accessor import CachedAccessor
 import requests
-import json
+import calendar
 import time
 import datetime
 import os
@@ -9,7 +10,7 @@ import pickle
 import pandas as pd
 
 
-class WarzoneScraper:
+class WarzoneTracker:
     """
     Class that offers functions to fetch data from COD Tracker API
 
@@ -17,7 +18,7 @@ class WarzoneScraper:
     every time you want to plot.
     """
 
-    def __init__(self, delay=1.0, cache_filename='matches.pkl.gz'):
+    def __init__(self, delay=1.0, cache_filename='matches.pkl'):
         self.cache_filename = cache_filename
         self.headers = {
             'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="90", "Google Chrome";v="90"',
@@ -25,12 +26,16 @@ class WarzoneScraper:
             'Referer': 'https://cod.tracker.gg/',
             'Accept-Language': 'en',
             'sec-ch-ua-mobile': '?0',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\
-             (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36',
         }
         # delay between requests to dodge ratelimit
         self.delay = delay
-        self.cache = {}
+        self.cache = {'users': {
+            # 'match_history': [],
+            # 'stats': {}
+        },
+            'matches': {}
+        }
 
         # modes that are accounted for in the statistics
         self.accepted_modes = [
@@ -39,26 +44,50 @@ class WarzoneScraper:
             "br_brduos",
         ]
 
+        self.accepted_platforms = [
+            "battlenet",
+            "atvi",
+            "psn",
+        ]
+
         # Load existing cache from drive
         if os.path.exists(self.cache_filename):
-            with gzip.open(self.cache_filename, 'rb') as file:
+            with open(self.cache_filename, 'rb') as file:
                 self.cache = pickle.load(file)
 
-    def __get_cached_match(self, match_id: str) -> tuple:
-        """Returns cached match KDR or None"""
-        if match_id in self.cache:
-            return self.cache[match_id]
+    def __get_cached_user_stats(self, nickname):
+        if nickname in self.cache['users']:
+            return self.cache['users'][nickname]
+        return None
+
+    def __cache_user_stats(self, nickname, user_data):
+        if nickname not in self.cache['users']:
+            self.cache['users'][nickname] = {
+                'match_history': []
+            }
+
+        self.cache['users'][nickname]['stats'] = user_data
+
+    def __get_cached_user_history(self, nickname) -> list:
+        if nickname in self.cache['users']:
+            return self.cache['users'][nickname]['match_history']
+        return None
+
+    def __cache_user_history(self, nickname, history):
+        if nickname not in self.cache['users']:
+            self.cache['users'][nickname] = {
+                'match_history': []
+            }
+        self.cache['users'][nickname]['match_history'] = history
+
+    def __get_cached_match(self, id):
+        if id in self.cache['matches']:
+            return self.cache['matches'][id]
 
         return None
 
-    def __cache_match(self, match_id: str, match_data: tuple):
-        """Caches match KDR to in-memory cache"""
-        self.cache[match_id] = match_data
-
-    def save_cache(self):
-        """Saves cache to disk"""
-        with gzip.open(self.cache_filename, 'wb') as file:
-            pickle.dump(self.cache, file)
+    def __cache_match(self, id, match_data):
+        self.cache['matches'][id] = match_data
 
     def __is_inside_time_interval(self, timestamp, start_hour, end_hour):
         """Check if timestamp is inside day hour interval"""
@@ -76,85 +105,6 @@ class WarzoneScraper:
             return True
 
         return False
-
-    def __delay_request(self):
-        time.sleep(self.delay)
-
-    def get_last_n_matches(self, player: str, count=20, start_hour=0, end_hour=0, next=None):
-        """Fetch ids last matches of `player`
-
-        Arguments:
-            player (str) - activision or battlenet name
-            count (int) - number of games to fetch
-            start_hour=0 (int) - Sets the start hour to use in the plot (example: filtering only morning games)
-            end_hour=0 (int) - Sets the end hour to use in the plot (example: filtering only morning games)
-            next (int) - timestamp to fetch games older than timestamp
-
-            if start_hour == end_hour then games at any time are used
-        """
-        self.__delay_request()
-
-        params = (('type', 'wz'), ('next', str(next))
-                  ) if next else (('type', 'wz'),)
-
-        username_parsed = urllib.parse.quote(player)
-        name_tag = player.split('#')[1]
-        # more numbers -> activision username
-        url = 'https://api.tracker.gg/api/v2/warzone/standard/matches/atvi/'
-        if len(name_tag) <= 5:
-            url = 'https://api.tracker.gg/api/v2/warzone/standard/matches/battlenet/'
-
-        resp = requests.get(url + username_parsed,
-                            headers=self.headers, params=params)
-
-        # Handle various errors that COD Tracker might return
-        if resp.status_code == 429:
-            print("RateLimited? Waiting 10 minutes.", resp.text)
-            self.save_cache()
-            time.sleep(10 * 60)
-            # Try again recursively
-            return self.get_last_n_matches(player, count, start_hour, end_hour, next)
-        if resp.status_code == 500:
-            print('Error with API, saving cache: ', resp.text)
-            self.save_cache()
-            exit(1)
-        if resp.status_code == 503 or resp.status_code == 504 or resp.status_code == 400:
-            print('Service not available, retrying:')
-            self.save_cache()
-            while resp.status_code == 503 or resp.status_code == 504 or resp.status_code == 400:
-                time.sleep(30)
-                resp = requests.get(url + username_parsed, headers=self.headers, params=params)
-
-        match_json = json.loads(resp.text)
-        match_ids = []
-
-        for match in match_json['data']['matches']:
-            timestamp = match['metadata']['timestamp']
-            mode_id = match['attributes']['modeId']
-            match_id = match['attributes']['id']
-            is_accepted = mode_id in self.accepted_modes and self.__is_inside_time_interval(
-                timestamp, start_hour, end_hour)
-            if is_accepted:
-                # remove
-                time_t = datetime.datetime.strptime(
-                    timestamp, "%Y-%m-%dT%H:%M:%S%z").timetuple()
-                print(
-                    f"Match {match_id} - time: {time_t.tm_hour}:{time_t.tm_min}")
-
-                match_ids.append(match_id)
-
-        amount = len(match_ids)
-
-        if amount < count:
-            # recursive
-            next_timestamp = match_json['data']['metadata']['next']
-            next_ids = self.get_last_n_matches(
-                player, count-amount, start_hour, end_hour, next_timestamp)
-
-            amount += len(next_ids)
-            match_ids += next_ids
-
-        return match_ids
 
     def __calculate_match_kd(self, teams: list) -> float:
         matchKd = 0
@@ -175,6 +125,70 @@ class WarzoneScraper:
 
         return matchKd / len(teams)
 
+    def __delay_request(self):
+        time.sleep(self.delay)
+
+    def save_cache(self):
+        """Saves cache to disk"""
+        with open(self.cache_filename, 'wb') as file:
+            fastPickler = pickle.Pickler(file, pickle.HIGHEST_PROTOCOL)
+            fastPickler.fast = 1
+            fastPickler.dump(self.cache)
+
+    def get_user_lifetime_data(self, nickname: str, platform: str) -> tuple:
+        # Try cache first
+        cached_user = self.__get_cached_user_stats(nickname)
+        if cached_user:
+            sec_in_day = 60 * 60 * 24
+            timestamp = time.time()
+            # use cache if it's not more than day old
+            if cached_user['stats'][0] + sec_in_day >= timestamp:
+                return cached_user['stats']
+
+        endpoint = f'https://api.tracker.gg/api/v2/warzone/standard/profile'
+        encoded_name = urllib.parse.quote(nickname)
+        url = f'{endpoint}/{platform}/{encoded_name}'
+
+        resp = requests.get(url, headers=self.headers)
+
+        # Check if BR is always second
+        warzone_lifetime_data = resp.json()['data']['segments'][1]
+        assert warzone_lifetime_data['attributes']['mode'] == 'br'
+
+        lifetime_stats = warzone_lifetime_data['stats']
+        kdr = lifetime_stats['kdRatio']['value']
+        winrate = lifetime_stats['wlRatio']['value']
+        wins = lifetime_stats['wins']['value']
+        kills = lifetime_stats['kills']['value']
+        avg_life = lifetime_stats['averageLife']['value']
+        game_played = lifetime_stats['gamesPlayed']['value']
+
+        timestamp = time.time()
+
+        user_data = (timestamp, nickname, kdr, winrate, wins, kills, avg_life, game_played)
+        self.__cache_user_stats(nickname, user_data)
+        return user_data
+
+    def _get_match_player_data(self, stats_json):
+        kills = -1
+        deaths = -1
+        damage = -1
+        team_alive_time = -1
+        headshots = -1
+
+        if 'kills' in stats_json:
+            kills = stats_json['kills']['value']
+        if 'deaths' in stats_json:
+            deaths = stats_json['deaths']['value']
+        if 'damageDone' in stats_json:
+            damage = stats_json['damageDone']['value']
+        if 'teamSurvivalTime' in stats_json:
+            team_alive_time = stats_json['teamSurvivalTime']['value']
+        if 'headshots' in stats_json:
+            headshots = stats_json['headshots']['value']
+
+        return kills, deaths, damage, team_alive_time, headshots
+
     def get_match_data(self, match_id: str) -> tuple():
         """Fetches match data and calculates avg. team KDR of the match
 
@@ -186,8 +200,8 @@ class WarzoneScraper:
         """
         self.__delay_request()
 
-        url = 'https://api.tracker.gg/api/v2/warzone/standard/matches/'
-        resp = requests.get(url + match_id, headers=self.headers)
+        url = f'https://api.tracker.gg/api/v2/warzone/standard/matches/{match_id}'
+        resp = requests.get(url, headers=self.headers)
 
         if resp.status_code == 429:
             print("RateLimited? Saved cache, waiting 10 minutes.", resp.text)
@@ -204,65 +218,200 @@ class WarzoneScraper:
             self.save_cache()
             while resp.status_code == 503 or resp.status_code == 504 or resp.status_code == 400:
                 time.sleep(30)
-                resp = requests.get(url + match_id, headers=self.headers)
+                resp = requests.get(url, headers=self.headers)
 
-        teams = {}
-        json = resp.json()
-        # Sort all players into coresponding teams
-        if 'data' not in json:
+        if 'data' not in resp.json():
             print('Match not found? Saving cache, retrying --', resp.text)
             self.save_cache()
             while 'data' not in resp.json():
                 time.sleep(30)
-                resp = requests.get(url + match_id, headers=self.headers)
+                resp = requests.get(url, headers=self.headers)
 
+        teams = {}
+        json = resp.json()
+        # Sort all players into coresponding teams
         for player in json['data']['segments']:
             team = player['attributes']['team']
             name = player['attributes']['platformUserIdentifier']
-            kd = 0
+
+            kills, deaths, damage, team_alive_time, headshots = self._get_match_player_data(
+                player['stats'])
+
+            lifetime_kd = 0
             if 'lifeTimeStats' in player['attributes']:
-                kd = player['attributes']['lifeTimeStats']['kdRatio']
+                lifetime_kd = player['attributes']['lifeTimeStats']['kdRatio']
+
+            player_data = (name, lifetime_kd, kills, deaths,
+                           damage, team_alive_time, headshots)
 
             if team not in teams:
-                teams[team] = [(name, kd, team)]
+                teams[team] = [player_data]
             else:
-                teams[team].append((name, kd, team))
+                teams[team].append(player_data)
 
-        match_kd = round(self.__calculate_match_kd(teams), 1)
+        match_kd = round(self.__calculate_match_kd(teams), 3)
         match_id = json['data']['attributes']['id']
+        match_mode = json['data']['attributes']['modeId']
+        match_time = int(json['data']['metadata']['duration']['value']) / 1e3
         timestamp = int(json['data']['metadata']['timestamp']) / 1e3
-        match_data = (match_id, match_kd, teams, timestamp)
+        match_data = (match_id, match_mode, timestamp, match_time, match_kd, teams)
 
         self.__cache_match(match_id, match_data)
         return match_data
 
-    def get_data_for_user(
-            self, username: str, count: int, start_hour=0, end_hour=0) -> pd.DataFrame:
-        """Gets data for 'username' last 'count' game as pd.DataFrame
+    def get_matches(self, nickname, platform, next=0):
+        self.__delay_request()
 
-        Arguments:
-            username (str) - activision or battlenet name
-            count (int) - number of games to fetch
-            start_hour=0 (int) - Sets the start hour to use in the plot (example: filtering only morning games)
-            end_hour=0 (int) - Sets the end hour to use in the plot (example: filtering only morning games)
+        params = (('type', 'wz'), ('next', str(next)))
 
-            if start_hour == end_hour then games at any time are used
-        Returns:
-            pd.DataFrame with 'count' rows and 4 columns | match_id | kd | teams | timestamp |
+        endpoint = f'https://api.tracker.gg/api/v2/warzone/standard/matches'
+        encoded_name = urllib.parse.quote(nickname)
+        url = f'{endpoint}/{platform}/{encoded_name}'
+
+        resp = requests.get(url, headers=self.headers, params=params)
+
+        # Handle various errors that COD Tracker might return
+        if resp.status_code == 429:
+            print("RateLimited? Waiting 10 minutes.", resp.text)
+            self.save_cache()
+            time.sleep(10 * 60)
+            print("Retrying:")
+            # Try again recursively
+            return self.get_matches(nickname, platform, next)
+        if resp.status_code == 500:
+            print('Error with API, saving cache: ', resp.text)
+            self.save_cache()
+            print('Waiting 5 minutes')
+            time.sleep(5 * 60)
+            print('Retrying:')
+            return self.get_matches(nickname, platform, next)
+        if resp.status_code == 503 or resp.status_code == 504 or resp.status_code == 400:
+            print('Service not available, waiting 30 seconds:')
+            self.save_cache()
+            time.sleep(30)
+            print('Retrying:')
+            return self.get_matches(nickname, platform, next)
+
+        match_json = resp.json()
+        matches = []
+
+        # iterate and filter matches
+        for match in match_json['data']['matches']:
+            timestamp = match['metadata']['timestamp']
+            mode_id = match['attributes']['modeId']
+            match_id = match['attributes']['id']
+            match_duration = match['metadata']['duration']['value']
+            # is_accepted = mode_id in self.accepted_modes and self.__is_inside_time_interval(
+            #     timestamp, start_hour, end_hour)
+            is_accepted = mode_id in self.accepted_modes
+            if is_accepted:
+                time_t = datetime.datetime.strptime(
+                    timestamp, "%Y-%m-%dT%H:%M:%S%z").timetuple()
+                print(
+                    f"Fetched match history {match_id: <20} - time: {time_t.tm_hour:02}:{time_t.tm_min:02}")
+                # From seconds to miliseconds so it's compatible with 'Next' argument
+                timestamp = int(calendar.timegm(time_t) * 1e3)
+                matches.append((match_id, timestamp))
+
+        next_timestamp = match_json['data']['metadata']['next']
+
+        raw_count = len(match_json['data']['matches'])
+        if raw_count < 20:
+            next_timestamp = -1
+        return matches, next_timestamp
+
+    def get_matches_from_history(self, nickname: str, matches: list, count: int) -> list:
+        """ returns as much matches from history it can up to `count` or None"""
+        cached_history = self.__get_cached_user_history(nickname)
+
+        if not cached_history:
+            return None
+
+        last_tst_new = matches[-1][1]
+        last_tst_cache = cached_history[-1][1]
+
+        if last_tst_new <= last_tst_cache:
+            return None
+
+        # we try to find match between newest dowloaded matches and first cached one
+        for idx, match in enumerate(matches):
+            if match[1] == cached_history[0][1]:
+                print('Found cache match, reading further from cache')
+                return matches[0:idx] + cached_history
+        return None
+
+    def get_user_matches(self,
+                         nickname: str,
+                         platform: str,
+                         count=0):
         """
+        # situations:
+        We request past 20 matches
+            - N-th one is in the history
+            - None of them are in history
 
-        match_ids = self.get_last_n_matches(username, count, start_hour, end_hour)
+        We continue reading cached history:
+            - until we're happz
+            - until we run out of cache - requesting further
+        """
+        matches = []
+        next_timestamp = 0
 
-        df = pd.DataFrame(columns=['id', 'kd', 'teams', 'timestamp'])
-        for id in match_ids:
+        while len(matches) < count:
+            next_matches, next_timestamp = self.get_matches(nickname, platform, next_timestamp)
+
+            if next_timestamp == -1:
+                print("I guess we found end of players match history")
+                matches += next_matches
+                break
+
+            history = self.get_matches_from_history(nickname, next_matches, count - len(matches))
+            if history:
+                matches += history
+                # timestmap of 19th match from the end because COD Tracker after is broken
+                next_timestamp = matches[-19][1] - 1
+                print(f'Loaded {len(history)} matches from history cache')
+                print(f"Next match timestamp: {next_timestamp}")
+            else:
+                matches += next_matches
+
+        # remove duplicates in case of history going around COD Tracker broken 'next' argument
+        matches = list(dict.fromkeys(matches))
+
+        self.__cache_user_history(nickname, matches)
+
+        # clip the extra matches
+        if len(matches) > count:
+            matches = matches[:count]
+
+        # use only ids
+        match_ids = list(map(lambda x: x[0], matches))
+
+        # debug
+        if any(match_ids.count(x) > 1 for x in match_ids):
+            print('Error, duplicates in match ids')
+
+        return match_ids
+
+    def get_user_data(self,
+                      nickname: str,
+                      platform: str,
+                      **kwargs) -> pd.DataFrame:
+
+        lifetime_stats = self.get_user_lifetime_data(nickname, platform)
+        match_ids = self.get_user_matches(nickname, platform, **kwargs)
+        self.save_cache()
+
+        df = pd.DataFrame(columns=['id', 'mode', 'timestamp',
+                          'duration', 'match_team_kd', 'players'])
+        for idx, id in enumerate(match_ids):
             # Try cache first
             match_data = self.__get_cached_match(id)
             if not match_data:
                 match_data = self.get_match_data(id)
-
-            print(f'Fetched match - {match_data[0]}, KD: {match_data[1]}')
+            print(f'Fetched match details - {id: <20} KD: {match_data[4]:1.3}, Left: {len(match_ids) - idx - 1}')
             df.loc[len(df)] = list(match_data)
 
         print('Caching matches')
         self.save_cache()
-        return df
+        return (lifetime_stats, df)
